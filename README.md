@@ -10,6 +10,22 @@ A robust, enterprise-grade Expense Reimbursement System backend built using **Fa
 
 ---
 
+## 📸 Interactive API Screenshots & Demo
+
+### 1. Interactive Swagger UI & Endpoint Groups
+![Swagger Endpoints Overview](docs/screenshots/swagger_endpoints_overview.png)
+
+### 2. OAuth2 Bearer Token Authentication
+![OAuth2 Authentication Modal](docs/screenshots/oauth2_authentication_modal.png)
+
+### 3. User Profile Response (`GET /api/v1/auth/me`)
+![User Profile API Response](docs/screenshots/user_profile_response.png)
+
+### 4. Department List & Budget Summary (`GET /api/v1/departments/`)
+![Department List API Response](docs/screenshots/departments_response.png)
+
+---
+
 ## 🏛️ System Architecture Overview
 
 ```mermaid
@@ -106,17 +122,6 @@ sequenceDiagram
         API-->>Employee: "Sufficient information could not be found..."
     end
 ```
-
----
-
-## 📸 Interactive API Documentation Preview
-
-| Feature | Screenshot / OpenAPI Endpoint Group |
-|---|---|
-| **Interactive Swagger UI** | `GET /docs` — Fully documented OpenAPI schemas and execute buttons |
-| **ReDoc Documentation** | `GET /redoc` — Structured technical API specification |
-| **Authentication** | `POST /api/v1/auth/login` — OAuth2 Password Bearer Token generation |
-| **AI Policy Assistant** | `POST /api/v1/policy-assistant/query` — RAG grounded response with citations |
 
 ---
 
