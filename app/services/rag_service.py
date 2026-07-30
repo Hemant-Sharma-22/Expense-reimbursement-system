@@ -59,7 +59,7 @@ class RAGService:
     def load_and_index_documents(self, force_reindex: bool = False):
         """
         Processes and indexes policy documents.
-        Supports Incremental Indexing (only re-indexes modified/new files) and PDF/Markdown parsing.
+        Supports Incremental Indexing (only re-indexes modified/new files) and PDF/Markdown/TXT/CSV parsing.
         """
         if not os.path.exists(POLICIES_DIR):
             return
@@ -79,15 +79,22 @@ class RAGService:
                     continue
 
             text = ""
-            if filename.endswith(".md"):
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text = f.read()
-                doc_title = filename.replace(".md", "").replace("_", " ").title()
+            doc_title = filename.replace("_", " ").title()
+
+            if filename.endswith(".md") or filename.endswith(".txt") or filename.endswith(".csv"):
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        text = f.read()
+                except Exception:
+                    continue
             elif filename.endswith(".pdf"):
                 text = self._extract_text_from_pdf(file_path)
-                doc_title = filename.replace(".pdf", "").replace("_", " ").title()
             else:
-                continue
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        text = f.read()
+                except Exception:
+                    continue
 
             self.chunks = [c for c in self.chunks if c.file_path != file_path]
             self.indexed_files_mtime[file_path] = mtime
@@ -116,6 +123,17 @@ class RAGService:
                         file_path=file_path
                     ))
 
+    def delete_document(self, filename: str) -> bool:
+        """Deletes a document from knowledge base policies directory."""
+        file_path = os.path.join(POLICIES_DIR, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            self.chunks = [c for c in self.chunks if c.file_path != file_path]
+            if file_path in self.indexed_files_mtime:
+                del self.indexed_files_mtime[file_path]
+            return True
+        return False
+
     def _extract_text_from_pdf(self, file_path: str) -> str:
         """Extracts text from PDF documents with fallback handling."""
         text = ""
@@ -130,7 +148,7 @@ class RAGService:
             pass
 
         if not text.strip():
-            text = f"## Policy Document Content\nExtracted content from PDF file {os.path.basename(file_path)}."
+            text = f"## Policy Document Content\nExtracted content from file {os.path.basename(file_path)}."
         return text
 
     def _expand_query(self, query: str) -> List[str]:
@@ -209,17 +227,16 @@ class RAGService:
         reranked = self._rerank_chunks(scored_chunks[:top_k * 2], query)
         return reranked[:top_k]
 
-    def _generate_with_gemini(self, query: str, context: str) -> Optional[str]:
+    def _generate_with_gemini(self, query: str, context: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Calls Gemini API with strict system instructions:
-        Answer strictly using ONLY the provided PDF content context.
-        If information is missing beyond the PDF, reply EXACTLY with fallback message.
+        Calls Gemini 2.0 Flash API with strict system instructions:
+        Answer strictly using ONLY the provided document context.
+        Returns tuple of (answer_text, error_message).
         """
-        api_key = getattr(settings, "GEMINI_API_KEY", "")
-        if not api_key:
-            return None
+        api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
 
-        prompt = f"""You are a strict, precise document Q&A assistant. Your task is to answer the user's question using ONLY the provided context extracted from the uploaded PDF document(s).
+
+        prompt = f"""You are a strict, precise document Q&A assistant. Your task is to answer the user's question using ONLY the provided context extracted from the uploaded document(s).
 
 STRICT COMPLIANCE RULES:
 1. You MUST answer the question using ONLY information directly stated in the CONTEXT below.
@@ -228,14 +245,14 @@ STRICT COMPLIANCE RULES:
 3. Do NOT use any external knowledge, background information, or make up any details beyond the provided context.
 4. Keep the answer concise, accurate, and directly grounded in the text.
 
-CONTEXT FROM UPLOADED PDF DOCUMENTS:
+CONTEXT FROM UPLOADED DOCUMENTS:
 {context}
 
 USER QUESTION:
 {query}
 """
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
             "contents": [{"parts": [{"text": prompt}]}]
@@ -250,10 +267,14 @@ USER QUESTION:
                     if candidates:
                         parts = candidates[0].get("content", {}).get("parts", [])
                         if parts:
-                            return parts[0].get("text", "").strip()
-        except Exception:
-            pass
-        return None
+                            return parts[0].get("text", "").strip(), None
+                elif response.status_code == 429:
+                    return None, "Gemini API Quota Exceeded (429 Rate Limit). Using grounded local search."
+                else:
+                    return None, f"Gemini API Error {response.status_code}: {response.text[:150]}"
+        except Exception as e:
+            return None, str(e)
+        return None, "No candidates returned from Gemini API"
 
     def query_policy(
         self,
@@ -262,7 +283,7 @@ USER QUESTION:
         history: Optional[List[ChatMessage]] = None
     ) -> RAGQueryResponse:
         """
-        Performs Retrieval-Augmented Generation (RAG) using Gemini API over uploaded PDF documents.
+        Performs Retrieval-Augmented Generation (RAG) using Gemini API over uploaded documents.
         Answers strictly using ONLY the provided PDF context, returning explicit fallback if unavailable.
         """
         full_context_query = query
@@ -296,18 +317,20 @@ USER QUESTION:
 
         combined_context = "\n\n---\n\n".join(context_blocks)
 
-        # Generate answer using Gemini API with strict context boundary
-        gemini_answer = self._generate_with_gemini(query=query, context=combined_context)
+        # Generate answer using Gemini 2.0 Flash API
+        gemini_answer, error_msg = self._generate_with_gemini(query=query, context=combined_context)
 
         if gemini_answer:
             final_answer = gemini_answer
             is_grounded = fallback_msg.lower() not in gemini_answer.lower()
         else:
-            # Fallback local synthesis if Gemini API key fails or reaches quota
+            # Local grounded synthesis fallback
             final_answer = "\n---\n".join([
                 f"**According to {chunk.doc_name} ({chunk.section_title}):**\n{chunk.content}"
                 for chunk, _ in retrieved_results
             ])
+            if error_msg:
+                final_answer += f"\n\n*(Note: {error_msg})*"
             is_grounded = True
 
         return RAGQueryResponse(

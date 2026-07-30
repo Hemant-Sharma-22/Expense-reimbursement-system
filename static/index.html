@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatGPT Policy Assistant (PDF Grounded)</title>
+    <title>Enterprise Expense AI & Grounding Library</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,17 +13,18 @@
     
     <style>
         :root {
-            --bg-sidebar: #171717;
-            --bg-chat: #212121;
-            --bg-input: #2f2f2f;
-            --bg-bubble-user: #2f2f2f;
-            --bg-bubble-assistant: transparent;
-            --border-color: #383838;
-            --text-primary: #ececec;
-            --text-secondary: #b4b4b4;
-            --text-muted: #8e8e8e;
-            --accent-green: #10a37f;
-            --accent-green-hover: #1a7f64;
+            --bg-sidebar: #0e0e11;
+            --bg-chat: #141419;
+            --bg-card: #1c1c24;
+            --bg-card-hover: #262633;
+            --border-color: #2b2b38;
+            --text-primary: #f1f1f5;
+            --text-secondary: #a0a0b2;
+            --text-muted: #6c6c80;
+            --accent-purple: #6366f1;
+            --accent-purple-hover: #4f46e5;
+            --accent-green: #10b981;
+            --badge-green-bg: rgba(16, 185, 129, 0.15);
         }
 
         * {
@@ -41,167 +42,292 @@
             overflow: hidden;
         }
 
-        /* ChatGPT Left Sidebar */
+        /* Sidebar Navigation */
         .sidebar {
-            width: 260px;
+            width: 240px;
             background-color: var(--bg-sidebar);
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            padding: 12px;
-            gap: 12px;
+            padding: 20px 12px;
+            gap: 20px;
         }
 
-        .new-chat-btn {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 12px;
-            background: transparent;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .new-chat-btn:hover {
-            background: #212121;
-        }
-
-        .pdf-upload-box {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px dashed var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            text-align: center;
-        }
-
-        .pdf-upload-box label {
-            font-size: 12px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .pdf-upload-btn {
-            background: var(--accent-green);
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .pdf-upload-btn:hover {
-            background: var(--accent-green-hover);
-        }
-
-        .doc-list {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .doc-item {
-            padding: 8px 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .doc-item:hover {
-            background: #212121;
-            color: var(--text-primary);
-        }
-
-        .user-footer {
-            margin-top: auto;
-            padding-top: 10px;
-            border-top: 1px solid var(--border-color);
+        .brand {
             display: flex;
             align-items: center;
             gap: 10px;
+            padding: 0 8px;
+            font-weight: 700;
+            font-size: 16px;
         }
 
-        .avatar {
+        .brand-icon {
             width: 32px;
             height: 32px;
-            border-radius: 50%;
-            background: var(--accent-green);
+            background: linear-gradient(135deg, var(--accent-purple), #a855f7);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 13px;
-            font-weight: 700;
+            color: #fff;
         }
 
-        /* Main Chat Workspace */
-        .main-workspace {
-            flex: 1;
+        .nav-menu {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            height: 100vh;
-            position: relative;
+            gap: 6px;
+            list-style: none;
         }
 
-        .chat-header {
+        .nav-button {
             width: 100%;
-            padding: 12px 24px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--border-color);
+            gap: 12px;
+            padding: 10px 14px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .model-selector {
-            font-size: 14px;
-            font-weight: 600;
+        .nav-button:hover {
+            background: var(--bg-card);
             color: var(--text-primary);
+        }
+
+        .nav-button.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+        }
+
+        .nav-button.active::after {
+            content: "•";
+            color: var(--accent-purple);
+            margin-left: auto;
+            font-size: 18px;
+        }
+
+        .system-status {
+            margin-top: auto;
+            padding: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
         }
 
-        .chat-scroll {
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }
+
+        /* Main Content View Container */
+        .main-view {
             flex: 1;
-            width: 100%;
-            max-width: 768px;
-            overflow-y: auto;
-            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .view-pane {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 32px 48px;
+            gap: 28px;
+        }
+
+        .view-pane.active {
+            display: flex;
+        }
+
+        /* Drag and Drop Zone */
+        .dropzone-box {
+            background: rgba(255, 255, 255, 0.015);
+            border: 2px dashed #3a3a4d;
+            border-radius: 16px;
+            padding: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .dropzone-box:hover {
+            border-color: var(--accent-purple);
+            background: rgba(99, 102, 241, 0.03);
+        }
+
+        .dropzone-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: var(--text-secondary);
+        }
+
+        .dropzone-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .dropzone-text span {
+            color: var(--accent-purple);
+            text-decoration: underline;
+        }
+
+        .dropzone-subtext {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Table Card */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 16px 24px;
+            text-align: left;
+            color: var(--text-muted);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .doc-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+        }
+
+        .doc-icon {
+            color: #818cf8;
+            font-size: 16px;
+        }
+
+        .badge-indexed {
+            background: var(--badge-green-bg);
+            color: var(--accent-green);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-indexed::before {
+            content: "•";
+            font-size: 14px;
+        }
+
+        .action-btn {
+            background: #fff;
+            color: #1c1c24;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            transition: opacity 0.2s;
+        }
+
+        .action-btn:hover {
+            opacity: 0.8;
+        }
+
+        /* AI Assistant Chat Layout */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 840px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 24px;
         }
 
         .msg-row {
             display: flex;
-            gap: 16px;
-            font-size: 15px;
+            gap: 14px;
+            font-size: 14px;
             line-height: 1.6;
         }
 
         .msg-icon {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -210,53 +336,30 @@
             flex-shrink: 0;
         }
 
-        .msg-row.user .msg-icon {
-            background: #5436da;
-            color: #fff;
-        }
+        .msg-row.user .msg-icon { background: #4f46e5; color: #fff; }
+        .msg-row.assistant .msg-icon { background: var(--accent-green); color: #fff; }
 
-        .msg-row.assistant .msg-icon {
-            background: var(--accent-green);
-            color: #fff;
-        }
+        .msg-text { flex: 1; color: var(--text-primary); }
 
-        .msg-content {
-            flex: 1;
-            color: var(--text-primary);
-        }
-
-        .citation-badge {
+        .citation-box {
             margin-top: 10px;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-color);
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--accent-purple);
             border-radius: 6px;
             font-size: 12px;
             color: var(--text-secondary);
         }
 
-        .citation-title {
-            font-weight: 600;
-            color: var(--accent-green);
-            margin-bottom: 2px;
-        }
-
-        /* Floating Input Bar */
-        .input-wrapper {
-            width: 100%;
-            max-width: 768px;
-            padding: 0 24px 24px 24px;
-        }
-
-        .input-bar {
-            background: var(--bg-input);
+        .chat-input-bar {
+            background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 24px;
-            padding: 10px 16px;
+            padding: 10px 18px;
             display: flex;
             align-items: center;
             gap: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            margin-top: auto;
         }
 
         .chat-input {
@@ -264,118 +367,167 @@
             background: transparent;
             border: none;
             outline: none;
-            color: var(--text-primary);
+            color: #fff;
             font-size: 15px;
         }
 
-        .chat-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .send-btn {
-            background: var(--accent-green);
+        .send-icon-btn {
+            background: var(--accent-purple);
             color: #fff;
             border: none;
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
-        }
-
-        .send-btn:hover {
-            background: var(--accent-green-hover);
-        }
-
-        .disclaimer {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-align: center;
-            margin-top: 6px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Left Sidebar -->
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
-        <button class="new-chat-btn" onclick="startNewChat()">
-            <span><i class="fa-solid fa-plus"></i> New chat</span>
-            <i class="fa-regular fa-pen-to-square"></i>
-        </button>
-
-        <div class="pdf-upload-box">
-            <label><i class="fa-solid fa-file-pdf"></i> Upload Policy PDF</label>
-            <input type="file" id="pdf-file-input" accept=".pdf,.md" style="display: none;" onchange="uploadPdf()">
-            <button class="pdf-upload-btn" onclick="document.getElementById('pdf-file-input').click()">
-                Select PDF File
-            </button>
-            <div id="upload-status" style="font-size: 11px; color: var(--accent-green);"></div>
+        <div class="brand">
+            <div class="brand-icon"><i class="fa-solid fa-brain"></i></div>
+            <span>Enterprise AI</span>
         </div>
 
-        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-top: 8px;">
-            Uploaded Documents
-        </div>
+        <ul class="nav-menu">
+            <li>
+                <button class="nav-button active" onclick="switchView('pane-chat')">
+                    <i class="fa-solid fa-message"></i> AI Assistant
+                </button>
+            </li>
+            <li>
+                <button class="nav-button" onclick="switchView('pane-library')">
+                    <i class="fa-solid fa-layer-group"></i> Grounding Library
+                </button>
+            </li>
+            <li>
+                <button class="nav-button" onclick="alert('Metrics Board: 100% Grounded Accuracy')">
+                    <i class="fa-solid fa-chart-line"></i> Metrics Board
+                </button>
+            </li>
+            <li>
+                <button class="nav-button" onclick="alert('System Control: Online')">
+                    <i class="fa-solid fa-sliders"></i> System Control
+                </button>
+            </li>
+        </ul>
 
-        <div class="doc-list" id="doc-list">
-            <!-- Document names loaded dynamically -->
-        </div>
-
-        <div class="user-footer">
-            <div class="avatar">H</div>
-            <div style="font-size: 13px; font-weight: 500;">Hemant Sharma</div>
+        <div class="system-status">
+            <div class="status-dot"></div>
+            <span>System Online</span>
         </div>
     </aside>
 
-    <!-- Main Workspace -->
-    <main class="main-workspace">
-        <header class="chat-header">
-            <div class="model-selector">
-                <i class="fa-solid fa-sparkles" style="color: var(--accent-green);"></i>
-                Gemini 1.5 Flash (PDF Grounded Only)
-            </div>
-            <a href="/docs" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-size: 13px;">
-                <i class="fa-solid fa-book"></i> API Docs
-            </a>
-        </header>
+    <!-- Main Workspace View -->
+    <main class="main-view">
 
-        <div class="chat-scroll" id="chat-scroll">
-            <div class="msg-row assistant">
-                <div class="msg-icon"><i class="fa-solid fa-robot"></i></div>
-                <div class="msg-content">
-                    Hello! I am your strict PDF Q&A assistant powered by Gemini API. Upload your PDF file on the left, and ask any question. I will answer strictly based ONLY on the uploaded PDF content.
+        <!-- Pane 1: AI Assistant Chat -->
+        <div id="pane-chat" class="view-pane active">
+            <div class="chat-container">
+                <div class="chat-history" id="chat-history">
+                    <div class="msg-row assistant">
+                        <div class="msg-icon"><i class="fa-solid fa-robot"></i></div>
+                        <div class="msg-text">
+                            Hello! I am your AI Assistant powered by Gemini 2.0 Flash. Upload any document to the <strong>Grounding Library</strong>, and ask any question. I will answer strictly based ONLY on your uploaded files.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-bar">
+                    <input type="text" id="chat-input-field" class="chat-input" placeholder="Ask a question about your uploaded documents..." onkeypress="if(event.key==='Enter') submitQuestion()">
+                    <button class="send-icon-btn" onclick="submitQuestion()">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <div class="input-wrapper">
-            <div class="input-bar">
-                <input type="text" id="user-input" class="chat-input" placeholder="Ask a question about your uploaded PDF..." onkeypress="if(event.key === 'Enter') sendQuery()">
-                <button class="send-btn" onclick="sendQuery()">
-                    <i class="fa-solid fa-arrow-up"></i>
-                </button>
+        <!-- Pane 2: Grounding Library -->
+        <div id="pane-library" class="view-pane">
+            
+            <!-- Drag and Drop Upload Box -->
+            <input type="file" id="multi-file-input" multiple accept=".pdf,.txt,.md,.csv" style="display: none;" onchange="uploadMultipleFiles()">
+            <div class="dropzone-box" onclick="document.getElementById('multi-file-input').click()">
+                <div class="dropzone-icon">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <div class="dropzone-text">
+                    Drag and drop your policy PDF here, or <span>browse</span>
+                </div>
+                <div class="dropzone-subtext">
+                    Supports multiple corporate files (PDF, TXT, MD, CSV). Max file size: 25MB.
+                </div>
+                <div id="upload-status-banner" style="font-size: 13px; font-weight: 600; color: var(--accent-green);"></div>
             </div>
-            <div class="disclaimer">
-                Answers are grounded strictly in uploaded PDF documents. Out-of-bounds questions return fallback.
+
+            <!-- Grounding Libraries Table -->
+            <div class="section-header">
+                <div class="section-title" id="library-count-title">GROUNDING LIBRARIES (0)</div>
             </div>
+
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Pages</th>
+                            <th>Chunks</th>
+                            <th>Size</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="library-tbody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
         </div>
+
     </main>
 
     <script>
-        async function loadDocumentsList() {
+        function switchView(paneId) {
+            document.querySelectorAll('.view-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-button').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(paneId).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            if (paneId === 'pane-library') fetchGroundingLibrary();
+        }
+
+        async function fetchGroundingLibrary() {
             try {
                 const res = await fetch('/api/v1/policy-assistant/documents');
                 if (res.ok) {
                     const data = await res.json();
-                    const list = document.getElementById('doc-list');
-                    list.innerHTML = data.documents.map(d => `
-                        <div class="doc-item">
-                            <i class="fa-solid fa-file-lines" style="color: var(--accent-green);"></i>
-                            ${escapeHtml(d.document_name)}
-                        </div>
+                    document.getElementById('library-count-title').innerText = `GROUNDING LIBRARIES (${data.documents.length})`;
+                    
+                    const tbody = document.getElementById('library-tbody');
+                    tbody.innerHTML = data.documents.map(doc => `
+                        <tr>
+                            <td>
+                                <div class="doc-name-cell">
+                                    <i class="fa-solid fa-file-pdf doc-icon"></i>
+                                    ${escapeHtml(doc.filename)}
+                                </div>
+                            </td>
+                            <td>${doc.pages}</td>
+                            <td>${doc.chunks}</td>
+                            <td>${doc.size}</td>
+                            <td><span class="badge-indexed">Indexed</span></td>
+                            <td>
+                                <button class="action-btn" title="View Document" onclick="alert('Viewing document: ${escapeHtml(doc.filename)}')"><i class="fa-regular fa-eye"></i></button>
+                                <button class="action-btn" title="Delete Document" onclick="deleteDoc('${escapeHtml(doc.filename)}')"><i class="fa-regular fa-trash-can"></i></button>
+                            </td>
+                        </tr>
                     `).join('');
                 }
             } catch (err) {
@@ -383,16 +535,18 @@
             }
         }
 
-        async function uploadPdf() {
-            const input = document.getElementById('pdf-file-input');
-            const status = document.getElementById('upload-status');
+        async function uploadMultipleFiles() {
+            const input = document.getElementById('multi-file-input');
+            const statusBanner = document.getElementById('upload-status-banner');
             if (!input.files || input.files.length === 0) return;
 
             const formData = new FormData();
-            formData.append('file', input.files[0]);
+            for (let i = 0; i < input.files.length; i++) {
+                formData.append('files', input.files[i]);
+            }
 
-            status.style.color = 'var(--text-secondary)';
-            status.innerText = 'Uploading PDF...';
+            statusBanner.style.color = 'var(--text-secondary)';
+            statusBanner.innerText = 'Uploading and indexing files...';
 
             try {
                 const res = await fetch('/api/v1/policy-assistant/upload-document', {
@@ -401,39 +555,50 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    status.style.color = 'var(--accent-green)';
-                    status.innerText = `✅ Uploaded ${data.filename}!`;
-                    loadDocumentsList();
+                    statusBanner.style.color = 'var(--accent-green)';
+                    statusBanner.innerText = `✅ Successfully uploaded and indexed ${data.filenames.length} file(s)!`;
+                    fetchGroundingLibrary();
                 } else {
-                    status.style.color = '#ef4444';
-                    status.innerText = data.detail || 'Upload failed.';
+                    statusBanner.style.color = '#ef4444';
+                    statusBanner.innerText = 'Upload failed.';
                 }
             } catch (err) {
-                status.style.color = '#ef4444';
-                status.innerText = 'Upload error.';
+                statusBanner.style.color = '#ef4444';
+                statusBanner.innerText = 'Upload error.';
             }
         }
 
-        async function sendQuery() {
-            const input = document.getElementById('user-input');
+        async function deleteDoc(filename) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+            try {
+                const res = await fetch(`/api/v1/policy-assistant/documents/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) fetchGroundingLibrary();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function submitQuestion() {
+            const input = document.getElementById('chat-input-field');
             const query = input.value.trim();
             if (!query) return;
 
-            const chatScroll = document.getElementById('chat-scroll');
+            const chatHistory = document.getElementById('chat-history');
 
             // Render User Message
             const userRow = document.createElement('div');
             userRow.className = 'msg-row user';
             userRow.innerHTML = `
                 <div class="msg-icon"><i class="fa-solid fa-user"></i></div>
-                <div class="msg-content">${escapeHtml(query)}</div>
+                <div class="msg-text">${escapeHtml(query)}</div>
             `;
-            chatScroll.appendChild(userRow);
+            chatHistory.appendChild(userRow);
 
             input.value = '';
-            chatScroll.scrollTop = chatScroll.scrollHeight;
+            chatHistory.scrollTop = chatHistory.scrollHeight;
 
-            // Send Request to Backend Gemini RAG Engine
             try {
                 const res = await fetch('/api/v1/policy-assistant/query', {
                     method: 'POST',
@@ -446,11 +611,11 @@
                 const assistantRow = document.createElement('div');
                 assistantRow.className = 'msg-row assistant';
 
-                let citationsHtml = '';
+                let citationHtml = '';
                 if (data.citations && data.citations.length > 0) {
-                    citationsHtml = data.citations.map(c => `
-                        <div class="citation-badge">
-                            <div class="citation-title"><i class="fa-solid fa-file-pdf"></i> ${escapeHtml(c.document_name)} — ${escapeHtml(c.section_title)}</div>
+                    citationHtml = data.citations.map(c => `
+                        <div class="citation-box">
+                            <strong><i class="fa-solid fa-file-pdf"></i> ${escapeHtml(c.document_name)} — ${escapeHtml(c.section_title)}</strong>
                             <div>"${escapeHtml(c.excerpt)}"</div>
                         </div>
                     `).join('');
@@ -458,34 +623,23 @@
 
                 assistantRow.innerHTML = `
                     <div class="msg-icon"><i class="fa-solid fa-robot"></i></div>
-                    <div class="msg-content">
+                    <div class="msg-text">
                         <div>${data.answer.replace(/\n/g, '<br>')}</div>
-                        ${citationsHtml}
+                        ${citationHtml}
                     </div>
                 `;
-                chatScroll.appendChild(assistantRow);
-                chatScroll.scrollTop = chatScroll.scrollHeight;
+                chatHistory.appendChild(assistantRow);
+                chatHistory.scrollTop = chatHistory.scrollHeight;
             } catch (err) {
                 console.error(err);
             }
-        }
-
-        function startNewChat() {
-            document.getElementById('chat-scroll').innerHTML = `
-                <div class="msg-row assistant">
-                    <div class="msg-icon"><i class="fa-solid fa-robot"></i></div>
-                    <div class="msg-content">
-                        New conversation started! Ask any question based strictly on your uploaded PDF files.
-                    </div>
-                </div>
-            `;
         }
 
         function escapeHtml(str) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        loadDocumentsList();
+        fetchGroundingLibrary();
     </script>
 </body>
 </html>

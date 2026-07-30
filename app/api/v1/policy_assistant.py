@@ -1,5 +1,6 @@
 import os
 import shutil
+import math
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -24,31 +25,41 @@ def query_policy_assistant(payload: RAGQueryRequest):
 
 
 @router.post("/upload-document")
-async def upload_policy_document(file: UploadFile = File(...)):
+async def upload_policy_documents(files: List[UploadFile] = File(...)):
     """
-    Upload a new custom PDF or Markdown policy document to the knowledge base.
-    The document will be instantly indexed and used to answer user questions.
+    Upload one or multiple custom policy documents (PDF, TXT, MD, CSV) to the Grounding Library.
+    The documents will be instantly indexed and used to answer user questions.
     """
-    if not (file.filename.endswith(".pdf") or file.filename.endswith(".md")):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF (.pdf) and Markdown (.md) policy files are supported."
-        )
-
     os.makedirs(POLICIES_DIR, exist_ok=True)
-    destination_path = os.path.join(POLICIES_DIR, file.filename)
+    uploaded = []
 
-    with open(destination_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    for file in files:
+        destination_path = os.path.join(POLICIES_DIR, file.filename)
+        with open(destination_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        uploaded.append(file.filename)
 
     rag = RAGService.get_instance()
     rag.load_and_index_documents(force_reindex=False)
 
     return {
         "status": "success",
-        "message": f"Successfully uploaded and indexed policy document '{file.filename}'",
-        "filename": file.filename
+        "message": f"Successfully uploaded and indexed {len(uploaded)} document(s).",
+        "filenames": uploaded
     }
+
+
+@router.delete("/documents/{filename}")
+def delete_indexed_document(filename: str):
+    """Deletes an indexed document from Grounding Library."""
+    rag = RAGService.get_instance()
+    success = rag.delete_document(filename)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{filename}' not found."
+        )
+    return {"status": "success", "message": f"Deleted document '{filename}'."}
 
 
 @router.post("/stream")
@@ -73,13 +84,26 @@ def list_indexed_policy_documents():
             docs[chunk.doc_name] = []
         docs[chunk.doc_name].append(chunk.section_title)
 
+    documents_metadata = []
+    if os.path.exists(POLICIES_DIR):
+        for filename in os.listdir(POLICIES_DIR):
+            filepath = os.path.join(POLICIES_DIR, filename)
+            size_kb = round(os.path.getsize(filepath) / 1024, 1)
+            doc_title = filename.replace(".pdf", "").replace(".md", "").replace(".txt", "").replace("_", " ").title()
+            chunks_count = sum(1 for c in rag.chunks if c.file_path == filepath)
+            documents_metadata.append({
+                "filename": filename,
+                "document_name": doc_title,
+                "size": f"{size_kb} KB",
+                "chunks": f"{chunks_count} nodes",
+                "pages": f"{max(1, math.ceil(chunks_count / 2))} pg",
+                "status": "Indexed"
+            })
+
     return {
-        "indexed_documents_count": len(docs),
+        "indexed_documents_count": len(documents_metadata),
         "total_sections": len(rag.chunks),
-        "documents": [
-            {"document_name": doc_name, "sections": list(set(sections))}
-            for doc_name, sections in docs.items()
-        ]
+        "documents": documents_metadata
     }
 
 
