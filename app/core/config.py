@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Duplicate Detection Window (in days)
     DUPLICATE_TIME_WINDOW_DAYS: int = 3
 
+    # Gemini API Key (Loaded safely from environment variables / .env)
+    GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY", "")
+
+
+
     class Config:
         case_sensitive = True
         env_file = ".env"

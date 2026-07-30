@@ -3,7 +3,9 @@ import re
 import math
 import uuid
 import time
+import httpx
 from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator
+from app.core.config import settings
 from app.schemas.rag import Citation, RAGQueryResponse, ChatMessage, FeedbackRequest, FeedbackResponse
 
 POLICIES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "policies")
@@ -67,18 +69,15 @@ class RAGService:
             self.indexed_files_mtime = {}
 
         current_files = os.listdir(POLICIES_DIR)
-        modified = False
 
         for filename in current_files:
             file_path = os.path.join(POLICIES_DIR, filename)
             mtime = os.path.getmtime(file_path)
 
-            # Incremental Indexing check
             if not force_reindex and file_path in self.indexed_files_mtime:
                 if self.indexed_files_mtime[file_path] >= mtime:
-                    continue  # File unchanged, skip
+                    continue
 
-            # Parse Markdown or PDF files
             text = ""
             if filename.endswith(".md"):
                 with open(file_path, "r", encoding="utf-8") as f:
@@ -90,12 +89,9 @@ class RAGService:
             else:
                 continue
 
-            # Remove existing chunks for this file if updating
             self.chunks = [c for c in self.chunks if c.file_path != file_path]
             self.indexed_files_mtime[file_path] = mtime
-            modified = True
 
-            # Split document into sections by headers (##)
             raw_sections = re.split(r'\n(?=##\s+)', text)
             for section_text in raw_sections:
                 lines = section_text.strip().split("\n")
@@ -121,7 +117,7 @@ class RAGService:
                     ))
 
     def _extract_text_from_pdf(self, file_path: str) -> str:
-        """Extracts text from PDF documents with fallback handling for scanned OCR PDFs."""
+        """Extracts text from PDF documents with fallback handling."""
         text = ""
         try:
             import pypdf
@@ -170,23 +166,15 @@ class RAGService:
         return round(content_score + title_score, 3)
 
     def _rerank_chunks(self, scored_chunks: List[Tuple[DocumentChunk, float]], query: str) -> List[Tuple[DocumentChunk, float]]:
-        """
-        Reranking Stage: Applies Reciprocal Rank Fusion (RRF) and exact term matching bonus
-        to refine candidate chunk order after initial hybrid retrieval.
-        """
+        """Reranking stage using Reciprocal Rank Fusion (RRF) and exact term matching."""
         if not scored_chunks:
             return []
 
         query_lower = query.lower()
         reranked = []
         for rank, (chunk, base_score) in enumerate(scored_chunks):
-            # RRF Score
             rrf_score = 1.0 / (60 + rank + 1)
-            
-            # Exact phrase match bonus
             exact_bonus = 0.3 if query_lower in chunk.content.lower() else 0.0
-
-            # Title alignment bonus
             title_bonus = 0.2 if any(term in chunk.section_title.lower() for term in query_lower.split()) else 0.0
 
             final_score = base_score + rrf_score + exact_bonus + title_bonus
@@ -201,10 +189,7 @@ class RAGService:
         document_filter: Optional[str] = None,
         top_k: int = 3
     ) -> List[Tuple[DocumentChunk, float]]:
-        """
-        Retrieves top-K most relevant policy chunks matching the query.
-        Features: Hybrid Search, Metadata Filtering, Query Expansion, and 2-Pass Reranking.
-        """
+        """Retrieves top-K most relevant policy chunks matching the query."""
         if not self.chunks:
             self.load_and_index_documents()
 
@@ -221,10 +206,54 @@ class RAGService:
                 scored_chunks.append((chunk, score))
 
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
-        
-        # Apply 2-pass Reranking algorithm
         reranked = self._rerank_chunks(scored_chunks[:top_k * 2], query)
         return reranked[:top_k]
+
+    def _generate_with_gemini(self, query: str, context: str) -> Optional[str]:
+        """
+        Calls Gemini API with strict system instructions:
+        Answer strictly using ONLY the provided PDF content context.
+        If information is missing beyond the PDF, reply EXACTLY with fallback message.
+        """
+        api_key = getattr(settings, "GEMINI_API_KEY", "")
+        if not api_key:
+            return None
+
+        prompt = f"""You are a strict, precise document Q&A assistant. Your task is to answer the user's question using ONLY the provided context extracted from the uploaded PDF document(s).
+
+STRICT COMPLIANCE RULES:
+1. You MUST answer the question using ONLY information directly stated in the CONTEXT below.
+2. If the user's question CANNOT be answered completely and strictly using the CONTEXT below, respond with EXACTLY this phrase and nothing else:
+"Sufficient information could not be found in the provided policy documents to answer your question."
+3. Do NOT use any external knowledge, background information, or make up any details beyond the provided context.
+4. Keep the answer concise, accurate, and directly grounded in the text.
+
+CONTEXT FROM UPLOADED PDF DOCUMENTS:
+{context}
+
+USER QUESTION:
+{query}
+"""
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+
+        try:
+            with httpx.Client(timeout=12.0) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts:
+                            return parts[0].get("text", "").strip()
+        except Exception:
+            pass
+        return None
 
     def query_policy(
         self,
@@ -233,8 +262,8 @@ class RAGService:
         history: Optional[List[ChatMessage]] = None
     ) -> RAGQueryResponse:
         """
-        Performs Retrieval-Augmented Generation (RAG) over indexed policy documents.
-        Returns grounded answers with citations, or explicit fallback if information is missing.
+        Performs Retrieval-Augmented Generation (RAG) using Gemini API over uploaded PDF documents.
+        Answers strictly using ONLY the provided PDF context, returning explicit fallback if unavailable.
         """
         full_context_query = query
         if history:
@@ -243,50 +272,61 @@ class RAGService:
 
         retrieved_results = self.retrieve(query=full_context_query, document_filter=document_filter, top_k=3)
 
+        fallback_msg = "Sufficient information could not be found in the provided policy documents to answer your question."
+
         if not retrieved_results or retrieved_results[0][1] < 0.10:
             return RAGQueryResponse(
-                answer="Sufficient information could not be found in the provided policy documents to answer your question.",
+                answer=fallback_msg,
                 citations=[],
                 grounded=False,
                 query=query
             )
 
         citations = []
-        answer_parts = []
+        context_blocks = []
 
         for chunk, score in retrieved_results:
-            citation = Citation(
+            citations.append(Citation(
                 document_name=chunk.doc_name,
                 section_title=chunk.section_title,
                 excerpt=chunk.content[:250] + ("..." if len(chunk.content) > 250 else ""),
                 relevance_score=score
-            )
-            citations.append(citation)
+            ))
+            context_blocks.append(f"[{chunk.doc_name} - {chunk.section_title}]\n{chunk.content}")
 
-            answer_parts.append(
-                f"**According to the {chunk.doc_name} ({chunk.section_title}):**\n{chunk.content}\n"
-            )
+        combined_context = "\n\n---\n\n".join(context_blocks)
 
-        combined_answer = "\n---\n".join(answer_parts)
+        # Generate answer using Gemini API with strict context boundary
+        gemini_answer = self._generate_with_gemini(query=query, context=combined_context)
+
+        if gemini_answer:
+            final_answer = gemini_answer
+            is_grounded = fallback_msg.lower() not in gemini_answer.lower()
+        else:
+            # Fallback local synthesis if Gemini API key fails or reaches quota
+            final_answer = "\n---\n".join([
+                f"**According to {chunk.doc_name} ({chunk.section_title}):**\n{chunk.content}"
+                for chunk, _ in retrieved_results
+            ])
+            is_grounded = True
 
         return RAGQueryResponse(
-            answer=combined_answer,
-            citations=citations,
-            grounded=True,
+            answer=final_answer,
+            citations=citations if is_grounded else [],
+            grounded=is_grounded,
             query=query
         )
 
     def record_feedback(self, req: FeedbackRequest) -> FeedbackResponse:
-        """Records user feedback (rating & comments) for RAG answer quality."""
+        """Records user feedback for RAG quality."""
         feedback_id = str(uuid.uuid4())
-        record = {
+        self.feedbacks.append({
             "feedback_id": feedback_id,
             "query": req.query,
             "rating": req.rating,
             "comment": req.comment,
             "timestamp": time.time()
-        }
-        self.feedbacks.append(record)
+        })
         return FeedbackResponse(
             status="success",
             message="Thank you for your feedback!",
@@ -298,7 +338,7 @@ class RAGService:
         query: str,
         document_filter: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
-        """Streams RAG response chunk by chunk for real-time streaming UI."""
+        """Streams RAG response token by token."""
         res = self.query_policy(query=query, document_filter=document_filter)
         words = res.answer.split(" ")
         for word in words:
