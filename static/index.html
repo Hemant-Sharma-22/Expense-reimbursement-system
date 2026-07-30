@@ -603,9 +603,21 @@
 
                     <hr style="border-color: var(--border); margin: 8px 0;">
 
-                    <h3 class="panel-title"><i class="fa-solid fa-file-pdf"></i> Knowledge Base</h3>
+                    <h3 class="panel-title"><i class="fa-solid fa-file-pdf"></i> Upload Custom Policy PDF</h3>
+                    <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                        Upload your PDF policy document. The chatbot will answer your questions grounded strictly inside your uploaded file content!
+                    </div>
+                    <input type="file" id="pdf-upload-input" accept=".pdf,.md" style="font-size: 12px; color: var(--text-muted); width: 100%;">
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 8px;" onclick="uploadPolicyPdf()">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Index PDF
+                    </button>
+                    <div id="pdf-upload-status" style="font-size: 11px; color: var(--success); text-align: center;"></div>
+
+                    <hr style="border-color: var(--border); margin: 8px 0;">
+
+                    <h3 class="panel-title"><i class="fa-solid fa-book"></i> Active Documents</h3>
                     <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;" id="kb-summary">
-                        Indexing 4 corporate policy documents (Expense Policy, Travel Policy, Finance Policy, Employee Handbook).
+                        Indexing corporate policy documents (Expense Policy, Travel Policy, Finance Policy, Employee Handbook).
                     </div>
                 </div>
             </div>
@@ -986,6 +998,40 @@
             }
         }
 
+        async function uploadPolicyPdf() {
+            const input = document.getElementById('pdf-upload-input');
+            const statusDiv = document.getElementById('pdf-upload-status');
+            if (!input.files || input.files.length === 0) {
+                statusDiv.style.color = 'var(--danger)';
+                statusDiv.innerText = 'Please select a PDF file to upload.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+
+            statusDiv.style.color = 'var(--accent)';
+            statusDiv.innerText = 'Uploading and indexing PDF document...';
+
+            try {
+                const res = await fetch('/api/v1/policy-assistant/upload-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    statusDiv.style.color = 'var(--success)';
+                    statusDiv.innerText = `✅ '${data.filename}' uploaded and indexed! Ask questions below.`;
+                } else {
+                    statusDiv.style.color = 'var(--danger)';
+                    statusDiv.innerText = data.detail || 'Upload failed.';
+                }
+            } catch (err) {
+                statusDiv.style.color = 'var(--danger)';
+                statusDiv.innerText = 'Error uploading PDF.';
+            }
+        }
+
         function escapeHtml(str) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
@@ -995,3 +1041,4 @@
     </script>
 </body>
 </html>
+
