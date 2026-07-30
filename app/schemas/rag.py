@@ -25,3 +25,16 @@ class RAGQueryResponse(BaseModel):
     citations: List[Citation]
     grounded: bool
     query: str
+
+
+class FeedbackRequest(BaseModel):
+    query: str = Field(..., example="What is the meal limit?")
+    rating: int = Field(..., ge=1, le=5, example=5, description="1 to 5 rating")
+    comment: Optional[str] = Field(default=None, example="Very accurate citation")
+
+
+class FeedbackResponse(BaseModel):
+    status: str = "success"
+    message: str
+    feedback_id: str
+

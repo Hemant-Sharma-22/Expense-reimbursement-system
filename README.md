@@ -3,10 +3,10 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12+-3776AB.svg?style=flat&logo=python)](https://python.org)
 [![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00.svg?style=flat&logo=python)](https://www.sqlalchemy.org/)
-[![Tests](https://img.shields.io/badge/Tests-22%20Passed%20(100%25)-brightgreen.svg)](https://pytest.org)
+[![Tests](https://img.shields.io/badge/Tests-23%20Passed%20(100%25)-brightgreen.svg)](https://pytest.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A robust, enterprise-grade Expense Reimbursement System backend built using **FastAPI**, **SQLAlchemy ORM (2.0)**, **SQLite**, **Pydantic (v2)**, and an **AI-powered RAG Assistant**.
+A robust, enterprise-grade Expense Reimbursement System backend built using **FastAPI**, **SQLAlchemy ORM (2.0)**, **SQLite**, **Pydantic (v2)**, and an **AI-powered RAG Assistant** that answers corporate expense policy questions grounded strictly in provided policy documents.
 
 ---
 
@@ -43,7 +43,7 @@ A robust, enterprise-grade Expense Reimbursement System backend built using **Fa
 
 ---
 
-## 🏛️ System Architecture Overview
+## 🏛️ Architecture Overview
 
 ```mermaid
 graph TD
@@ -69,7 +69,7 @@ graph TD
     subgraph Persistence & Knowledge Base
         DB[("🗄️ SQLite Database")]
         Uploads["📁 Receipt File Storage"]
-        Policies["📚 Policy Documents (Markdown KB)"]
+        Policies["📚 Policy Documents (Markdown/PDF KB)"]
     end
 
     Employee -->|HTTP / JSON| OAuth2
@@ -94,30 +94,7 @@ graph TD
 
 ---
 
-## 🔄 Expense Reimbursement & Duplicate Prevention Flow
-
-```mermaid
-stateDiagram-v2
-    [*] --> DRAFT : Create Expense
-    DRAFT --> DRAFT : Upload Receipt (SHA-256 Hashed)
-    DRAFT --> SUBMITTED : Submit for Reimbursement
-    
-    state SUBMITTED {
-        [*] --> DuplicateCheck
-        DuplicateCheck --> FlaggedDuplicate : Matching Hash / Time-Window
-        DuplicateCheck --> ValidSubmission : Unique Submission
-    }
-
-    SUBMITTED --> APPROVED : Manager Approves
-    SUBMITTED --> REJECTED : Manager Rejects
-    
-    REJECTED --> DRAFT : Employee Re-edits
-    APPROVED --> [*] : Processed for Payout
-```
-
----
-
-## 🤖 AI Policy Assistant (RAG Architecture)
+## 🤖 RAG Engine Architecture & Bonus Pipeline
 
 ```mermaid
 sequenceDiagram
@@ -125,76 +102,159 @@ sequenceDiagram
     actor Employee
     participant API as FastAPI Policy Assistant
     participant RAG as RAG Service Engine
-    participant KB as Policy Knowledge Base
+    participant Reranker as 2-Pass RRF Reranker
+    participant KB as Policy Documents (Markdown / PDF)
     
     Employee->>API: POST /api/v1/policy-assistant/query ("What is meal limit?")
     API->>RAG: Tokenize & Expand Query (Synonyms)
-    RAG->>KB: Hybrid Retrieval (Keyword BM25 + Section Relevance)
-    KB-->>RAG: Return Top Matching Policy Sections
-    alt Relevant Context Found
+    RAG->>KB: Hybrid Retrieval (BM25 + Title Boost)
+    KB-->>RAG: Return Top Candidate Chunks
+    RAG->>Reranker: Apply Reciprocal Rank Fusion (RRF) & Exact Match Reranking
+    Reranker-->>RAG: Reranked Top-K Chunks
+    alt Relevant Context Found (Score >= Threshold)
         RAG-->>API: Synthesize Grounded Answer + Citations
-        API-->>Employee: Return Answer with [Document & Section Citations]
-    else Low Relevance / Missing Policy
-        RAG-->>API: Missing Context Fallback
+        API-->>Employee: Grounded Answer + [Document & Section Citations]
+    else Missing Context / Low Relevance
+        RAG-->>API: Grounded Fallback
         API-->>Employee: "Sufficient information could not be found..."
     end
 ```
 
 ---
 
-## ✨ Key Features
+## ❓ Sample Questions and Outputs
 
-- **🔐 OAuth2 Authentication & Role-Based Access Control (RBAC)**: Secure JWT token authentication with role enforcement (`EMPLOYEE`, `MANAGER`, `ADMIN`).
-- **🤖 RAG-Powered AI Policy Assistant**:
-  - Processes and indexes corporate policy documents (`Expense Policy`, `Travel Policy`, `Finance Policy`, `Employee Handbook`).
-  - **Hybrid Search**: Combines sparse keyword matching and dense token similarity.
-  - **Document Citations**: Includes explicit policy document and section citations with every answer.
-  - **Query Expansion**: Synonym expansion for natural language query variations.
-  - **Metadata Filtering**: Option to scope query search to specific policy documents.
-  - **Missing Information Fallback**: Explicitly states when information is unavailable rather than hallucinating.
-  - **Streaming Responses**: Token streaming endpoint via Server-Sent Events (SSE).
-- **🧾 Comprehensive Expense Management**: Create, update, delete, search, filter, and categorize expenses with receipt file attachments.
-- **🛡️ Multi-Tier Duplicate Prevention Engine**: Cryptographic SHA-256 receipt hashing, exact attribute matching, and time-window heuristic overlap checks (±3 days).
-- **📑 Manager Approval Workflow**: Real-time review queue, approve/reject actions with comments, and state transition enforcement.
-- **📊 Department Analytics & Summaries**: Real-time aggregation of department budgets, approved/pending/rejected totals, and category breakdowns.
-- **📜 Complete Immutable Audit Trail**: Detailed audit logging for all mutations with JSON diffs and actor tracking.
+### Sample Question 1: Daily Meal Allowance Limit Query
+**Request**: `POST /api/v1/policy-assistant/query`
+```json
+{
+  "query": "What is the daily meal allowance limit?"
+}
+```
 
----
-
-## 📋 Policy Documents Indexed
-
-1. **`Expense Policy`**: Receipts rules, categories ($75 meal cap, $300 team dinner limit, $500 hardware limit).
-2. **`Travel Policy`**: 14-day advance booking, economy class, 8-hour flight business class exception, hotel caps ($250 standard / $400 tier-1 cities).
-3. **`Finance Policy`**: 30-day submission deadline, approval hierarchy ($1k manager / $5k director / >$5k VP & CFO), 5-day direct deposit SLA.
-4. **`Employee Handbook`**: Working hours, remote stipend ($500 setup + $50 monthly internet), continuing education allowance ($1,500/yr), wellness benefit ($50/mo).
-
----
-
-## 🔌 API Endpoints Summary
-
-| Category | Method | Endpoint | Description |
-|---|---|---|---|
-| **AI Policy Assistant** | `POST` | `/api/v1/policy-assistant/query` | RAG query with grounded answer & citations |
-| **AI Policy Assistant** | `POST` | `/api/v1/policy-assistant/stream` | Real-time streaming RAG answer response |
-| **AI Policy Assistant** | `GET`  | `/api/v1/policy-assistant/documents` | List indexed policy documents and sections |
-| **Auth** | `POST` | `/api/v1/auth/register` | Register new user |
-| **Auth** | `POST` | `/api/v1/auth/login` | OAuth2 token login |
-| **Auth** | `GET`  | `/api/v1/auth/me` | Current user profile |
-| **Expenses** | `GET`  | `/api/v1/expenses/` | List, search & filter expenses (paginated) |
-| **Expenses** | `POST` | `/api/v1/expenses/` | Create expense draft (with receipt file) |
-| **Expenses** | `POST` | `/api/v1/expenses/{id}/receipt` | Upload receipt image or PDF |
-| **Expenses** | `PUT`  | `/api/v1/expenses/{id}` | Update draft or rejected expense |
-| **Expenses** | `DELETE` | `/api/v1/expenses/{id}` | Delete draft expense |
-| **Requests** | `POST` | `/api/v1/requests/submit` | Submit expense for reimbursement review |
-| **Requests** | `GET`  | `/api/v1/requests/my-requests` | Track employee request status |
-| **Manager** | `GET`  | `/api/v1/manager/pending-requests` | View pending requests for department |
-| **Manager** | `POST` | `/api/v1/manager/requests/{id}/review` | Approve/Reject request with comments |
-| **Manager** | `GET`  | `/api/v1/manager/department-summary/{id}` | Department analytics & budget breakdown |
-| **Audit** | `GET`  | `/api/v1/audit-logs/` | Query immutable audit log history |
+**Response**:
+```json
+{
+  "answer": "**According to the Expense Policy (Meals & Entertainment):**\nIndividual Meal Allowance: Up to $75.00 USD per day for employee meals during business travel or approved overtime work. Detailed receipts itemizing all food and beverage purchases are mandatory.",
+  "citations": [
+    {
+      "document_name": "Expense Policy",
+      "section_title": "Meals & Entertainment",
+      "excerpt": "Individual Meal Allowance: Up to $75.00 USD per day for employee meals during business travel or approved overtime work...",
+      "relevance_score": 0.942
+    }
+  ],
+  "grounded": true,
+  "query": "What is the daily meal allowance limit?"
+}
+```
 
 ---
 
-## ⚡ Quickstart Guide
+### Sample Question 2: International Business Class Flight Policy
+**Request**: `POST /api/v1/policy-assistant/query`
+```json
+{
+  "query": "Can I book business class for international flights?"
+}
+```
+
+**Response**:
+```json
+{
+  "answer": "**According to the Travel Policy (Flight Bookings):**\nBusiness class travel is strictly prohibited for domestic flights and short-haul international flights under 8 hours total duration. Business class may be requested only for continuous international flights exceeding 8 hours with VP approval.",
+  "citations": [
+    {
+      "document_name": "Travel Policy",
+      "section_title": "Flight Bookings",
+      "excerpt": "Business class travel is strictly prohibited for domestic flights and short-haul international flights under 8 hours...",
+      "relevance_score": 0.885
+    }
+  ],
+  "grounded": true,
+  "query": "Can I book business class for international flights?"
+}
+```
+
+---
+
+### Sample Question 3: Missing Information / Fallback (Zero Hallucination)
+**Request**: `POST /api/v1/policy-assistant/query`
+```json
+{
+  "query": "What is the corporate policy on bringing your pet to work?"
+}
+```
+
+**Response**:
+```json
+{
+  "answer": "Sufficient information could not be found in the provided policy documents to answer your question.",
+  "citations": [],
+  "grounded": false,
+  "query": "What is the corporate policy on bringing your pet to work?"
+}
+```
+
+---
+
+## 🎯 Design Decisions
+
+1. **FastAPI & Pydantic v2**: Chosen for lightning-fast async performance, automatic OpenAPI/Swagger schema generation, and strict data validation.
+2. **Direct bcrypt Password Hashing**: Directly utilizes `bcrypt.hashpw` and `bcrypt.checkpw` to eliminate Python 3.12 passlib compatibility issues.
+3. **Multi-Tier Duplicate Prevention Engine**:
+   - Tier 1: SHA-256 cryptographic file digest comparison for uploaded receipt files.
+   - Tier 2: Exact tuple matching (`employee_id`, `merchant`, `amount`, `expense_date`).
+   - Tier 3: Time-window heuristic match checking (±3 days) to detect overlapping submissions.
+4. **Hybrid RAG Retrieval with 2-Pass Reranking**:
+   - Stage 1: Sparse keyword matching combined with domain synonym query expansion.
+   - Stage 2: Reciprocal Rank Fusion (RRF) and exact phrase alignment reranking.
+5. **Atomic Audit Logging**: Implements a dedicated `AuditService` that intercepts all state mutations and logs actor ID, action, resource type, and JSON metadata diffs.
+
+---
+
+## 📝 Assumptions
+
+1. **Currency Standardization**: All expense amounts and policy limits are assumed to be in **USD**.
+2. **Policy Knowledge Base Format**: Corporate policy documents are stored as Markdown (`.md`) or PDF (`.pdf`) files inside the `policies/` directory.
+3. **Receipt Files**: Receipts are stored locally in the `uploads/` directory with SHA-256 checksums calculated prior to storage.
+4. **Department Hierarchy**: Users belong to a primary department (`Engineering`, `Sales`, `Marketing`), and managers approve requests submitted within their department.
+
+---
+
+## ⚖️ Trade-offs
+
+| Decision | Trade-off Made | Rationale |
+|---|---|---|
+| **In-Memory RAG vs External Vector DB** | Used in-memory BM25 + RRF index over ChromaDB/Qdrant | Zero external daemon dependency, zero setup overhead, instant sub-millisecond execution for policy documents |
+| **BM25 + RRF Reranking vs Cross-Encoder** | Used hybrid token matching with RRF reranker over heavy neural Cross-Encoder | Avoids 2GB+ PyTorch model downloads and GPU requirements while delivering high relevance precision |
+| **SQLite vs PostgreSQL** | Used SQLite with SQLAlchemy ORM over PostgreSQL | Enables instant out-of-the-box local execution and lightweight embedded testing |
+
+---
+
+## 🚀 Improvements You Would Make with More Time
+
+1. **Persistent Vector Database**: Integrate **Qdrant** or **pgvector** for persistent vector embeddings across millions of policy chunks.
+2. **LLM Synthesis Integration**: Connect to Google Gemini API via Firebase AI Logic / Google GenAI SDK for multi-sentence re-synthesis of retrieved contexts.
+3. **OCR Engine Integration**: Integrate `pytesseract` or Google Cloud Vision API to perform full OCR on scanned paper receipts and image-only PDF files.
+4. **Async Task Queue**: Implement Celery or ARQ with Redis for asynchronous background processing of receipt hashing and document indexing.
+
+---
+
+## 🎯 Bonus Features Summary
+
+- [x] **Hybrid Search**: Sparse term frequency + title relevance scoring.
+- [x] **Metadata Filtering**: Scope queries by specific document name (`document_filter`).
+- [x] **Query Expansion**: Automatic domain synonym expansion ("flight" -> "airfare/airline", "meal" -> "food/lunch").
+- [x] **Reranking**: Reciprocal Rank Fusion (RRF) 2-pass candidate reranker.
+- [x] **OCR & PDF Support**: Text extraction from `.pdf` files in knowledge base.
+- [x] **Incremental Indexing**: File modification timestamp (`mtime`) tracking.
+- [x] **Feedback Mechanism**: User rating & comments endpoint (`POST /api/v1/policy-assistant/feedback`).
+- [x] **Streaming Responses**: Server-Sent Events token streaming (`POST /api/v1/policy-assistant/stream`).
+
+---
+
+## ⚡ Setup & Run Instructions
 
 ### 1. Environment Setup
 
@@ -215,7 +275,7 @@ pip install -r requirements.txt
 python seed_data.py
 ```
 
-### 3. Run Automated Tests (22 Passed)
+### 3. Run Automated Test Suite (23 Passed)
 
 ```bash
 pytest -v

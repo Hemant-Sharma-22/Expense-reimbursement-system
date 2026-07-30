@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
-from app.schemas.rag import RAGQueryRequest, RAGQueryResponse
+from app.schemas.rag import RAGQueryRequest, RAGQueryResponse, FeedbackRequest, FeedbackResponse
 from app.services.rag_service import RAGService
 
 router = APIRouter(prefix="/policy-assistant", tags=["AI Policy Assistant (RAG)"])
@@ -51,3 +51,11 @@ def list_indexed_policy_documents():
             for doc_name, sections in docs.items()
         ]
     }
+
+
+@router.post("/feedback", response_model=FeedbackResponse)
+def submit_rag_feedback(payload: FeedbackRequest):
+    """Submits user rating (1-5 stars) and comments for RAG answer quality."""
+    rag = RAGService.get_instance()
+    return rag.record_feedback(payload)
+

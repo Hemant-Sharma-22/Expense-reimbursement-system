@@ -64,3 +64,19 @@ def test_list_indexed_documents(client):
     assert "Travel Policy" in doc_names
     assert "Finance Policy" in doc_names
     assert "Employee Handbook" in doc_names
+
+
+def test_rag_feedback_submission(client):
+    response = client.post(
+        "/api/v1/policy-assistant/feedback",
+        json={
+            "query": "What is the daily meal allowance limit?",
+            "rating": 5,
+            "comment": "Accurate citations and grounded answer!"
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert "feedback_id" in data
+
