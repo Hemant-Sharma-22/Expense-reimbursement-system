@@ -10,19 +10,36 @@ A robust, enterprise-grade Expense Reimbursement System backend built using **Fa
 
 ---
 
-## 📸 Interactive API Screenshots & Demo
+## 📸 Interactive API Screenshots & System Gallery
 
-### 1. Interactive Swagger UI & Endpoint Groups
+### 1. OpenAPI Documentation Header & Features (`/docs`)
+![Swagger Header & Description](docs/screenshots/swagger_header_description.png)
+
+### 2. Interactive Endpoint Router Groups
 ![Swagger Endpoints Overview](docs/screenshots/swagger_endpoints_overview.png)
 
-### 2. OAuth2 Bearer Token Authentication
-![OAuth2 Authentication Modal](docs/screenshots/oauth2_authentication_modal.png)
+### 3. OAuth2 Authentication Modal & Login Flow
+| OAuth2 Credentials Login Form | OAuth2 Authorized Session State |
+|---|---|
+| ![OAuth2 Login Form](docs/screenshots/oauth2_login_form.png) | ![OAuth2 Authentication Modal](docs/screenshots/oauth2_authentication_modal.png) |
 
-### 3. User Profile Response (`GET /api/v1/auth/me`)
-![User Profile API Response](docs/screenshots/user_profile_response.png)
+### 4. API Responses & Payloads
+| User Profile Payload (`GET /api/v1/auth/me`) | Department Summary Payload (`GET /api/v1/departments/`) |
+|---|---|
+| ![User Profile API Response](docs/screenshots/user_profile_response.png) | ![Department List API Response](docs/screenshots/departments_response.png) |
 
-### 4. Department List & Budget Summary (`GET /api/v1/departments/`)
-![Department List API Response](docs/screenshots/departments_response.png)
+### 5. System Health Check Endpoint (`GET /`)
+![System Health Check Response](docs/screenshots/health_check_response.png)
+
+---
+
+## 🧪 CLI Setup & Automated Test Suite
+
+### 1. Database Seeder Script Execution (`seed_data.py`)
+![Database Seeding CLI Execution](docs/screenshots/database_seeding_cli.png)
+
+### 2. Automated Test Suite Execution (`pytest -v`)
+![Pytest Execution Results](docs/screenshots/pytest_execution_results.png)
 
 ---
 
