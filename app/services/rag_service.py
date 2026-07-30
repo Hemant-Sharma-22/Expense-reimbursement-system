@@ -292,7 +292,18 @@ USER QUESTION:
             last_turns = " ".join([m.content for m in history[-2:]])
             full_context_query = f"{last_turns} {query}"
 
+        # Friendly greeting handler for general conversational greetings
+        clean_query = query.strip().lower()
+        if clean_query in ["hi", "hii", "hello", "hey", "help", "greetings"]:
+            return RAGQueryResponse(
+                answer="Hello! 👋 Ask me any question about your uploaded policy documents (e.g. meal limits, flight booking rules, lodging caps, or reimbursement deadlines).",
+                citations=[],
+                grounded=True,
+                query=query
+            )
+
         retrieved_results = self.retrieve(query=full_context_query, document_filter=document_filter, top_k=3)
+
 
         fallback_msg = "Sufficient information could not be found in the provided policy documents to answer your question."
 
