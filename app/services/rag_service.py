@@ -100,7 +100,23 @@ class RAGService:
             self.chunks = [c for c in self.chunks if c.file_path != file_path]
             self.indexed_files_mtime[file_path] = mtime
 
-            raw_sections = re.split(r'\n(?=##\s+)', text)
+            if "## " in text:
+                raw_sections = re.split(r'\n(?=##\s+)', text)
+            else:
+                paragraphs = [p.strip() for p in re.split(r'\n\s*\n', text) if p.strip()]
+                raw_sections = []
+                current_block = []
+                current_len = 0
+                for p in paragraphs:
+                    current_block.append(p)
+                    current_len += len(p)
+                    if current_len >= 400:
+                        raw_sections.append("\n\n".join(current_block))
+                        current_block = []
+                        current_len = 0
+                if current_block:
+                    raw_sections.append("\n\n".join(current_block))
+
             for section_text in raw_sections:
                 lines = section_text.strip().split("\n")
                 if not lines:
@@ -113,7 +129,8 @@ class RAGService:
                     section_title = lines[0].replace("# ", "").strip()
                     body = "\n".join(lines[1:]).strip()
                 else:
-                    section_title = "General Information"
+                    # Extract header candidate from first non-empty line
+                    section_title = lines[0][:50].strip(" -#*:") if len(lines[0]) < 60 else "Policy Detail"
                     body = "\n".join(lines).strip()
 
                 if body:
@@ -149,6 +166,25 @@ class RAGService:
             pass
 
         if not text.strip():
+            try:
+                import PyPDF2
+                reader = PyPDF2.PdfReader(file_path)
+                for page in reader.pages:
+                    extracted = page.extract_text()
+                    if extracted:
+                        text += extracted + "\n"
+            except Exception:
+                pass
+
+        if not text.strip():
+            try:
+                with open(file_path, "rb") as f:
+                    content = f.read().decode("utf-8", errors="ignore")
+                    text = re.sub(r'[^\x20-\x7E\n\r\t]', ' ', content)
+            except Exception:
+                pass
+
+        if not text.strip():
             text = f"## Policy Document Content\nExtracted content from file {os.path.basename(file_path)}."
         return text
 
@@ -173,6 +209,12 @@ class RAGService:
             return 0.0
 
         content_matches = sum(1 for token in query_tokens if token in chunk.tokens)
+        if content_matches == 0:
+            # Check raw string overlap for single word queries like 'bonus'
+            chunk_lower = chunk.content.lower()
+            if any(q in chunk_lower for q in query_tokens):
+                content_matches = 1
+
         if content_matches == 0:
             return 0.0
 
@@ -221,21 +263,76 @@ class RAGService:
                     continue
 
             score = self._compute_relevance_score(expanded_tokens, chunk)
-            if score > 0.05:
+            if score > 0.001:
                 scored_chunks.append((chunk, score))
 
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
         reranked = self._rerank_chunks(scored_chunks[:top_k * 2], query)
         return reranked[:top_k]
 
-    def _generate_with_gemini(self, query: str, context: str) -> Tuple[Optional[str], Optional[str]]:
+    def _generate_with_groq(self, query: str, context: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Calls Gemini 2.0 Flash API with strict system instructions:
+        Calls Groq API (llama-3.3-70b-versatile) with strict system instructions:
         Answer strictly using ONLY the provided document context.
         Returns tuple of (answer_text, error_message).
         """
-        api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+        api_key = getattr(settings, "GROQ_API_KEY", "") or os.getenv("GROQ_API_KEY", "")
+        if not api_key:
+            return None, "No GROQ_API_KEY configured"
 
+        prompt = f"""You are a strict, precise document Q&A assistant. Your task is to answer the user's question using ONLY the provided context extracted from the uploaded document(s).
+
+STRICT COMPLIANCE RULES:
+1. You MUST answer the question using ONLY information directly stated in the CONTEXT below.
+2. If the user's question CANNOT be answered completely and strictly using the CONTEXT below, respond with EXACTLY this phrase and nothing else:
+"Sufficient information could not be found in the provided policy documents to answer your question."
+3. Do NOT use any external knowledge, background information, or make up any details beyond the provided context.
+4. Keep the answer concise, accurate, and directly grounded in the text.
+
+CONTEXT FROM UPLOADED DOCUMENTS:
+{context}
+
+USER QUESTION:
+{query}
+"""
+
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [
+                {"role": "system", "content": "You are a precise, document-grounded assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.1
+        }
+
+        try:
+            with httpx.Client(timeout=15.0) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        content = choices[0].get("message", {}).get("content", "").strip()
+                        return content, None
+                else:
+                    return None, f"Groq API Error {response.status_code}: {response.text[:150]}"
+        except Exception as e:
+            return None, str(e)
+        return None, "No response choices returned from Groq API"
+
+    def _generate_with_gemini(self, query: str, context: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Calls Gemini 2.0 Flash API with strict system instructions.
+        Returns tuple of (answer_text, error_message).
+        """
+        api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+        if not api_key:
+            return None, "No GEMINI_API_KEY configured"
 
         prompt = f"""You are a strict, precise document Q&A assistant. Your task is to answer the user's question using ONLY the provided context extracted from the uploaded document(s).
 
@@ -270,7 +367,7 @@ USER QUESTION:
                         if parts:
                             return parts[0].get("text", "").strip(), None
                 elif response.status_code == 429:
-                    return None, "Gemini API Quota Exceeded (429 Rate Limit). Using grounded local search."
+                    return None, "Gemini API Quota Exceeded (429 Rate Limit)."
                 else:
                     return None, f"Gemini API Error {response.status_code}: {response.text[:150]}"
         except Exception as e:
@@ -284,8 +381,8 @@ USER QUESTION:
         history: Optional[List[ChatMessage]] = None
     ) -> RAGQueryResponse:
         """
-        Performs Retrieval-Augmented Generation (RAG) using Gemini API over uploaded documents.
-        Answers strictly using ONLY the provided PDF context, returning explicit fallback if unavailable.
+        Performs Retrieval-Augmented Generation (RAG) using Groq API (Llama 3.3 70B) over uploaded documents.
+        Answers strictly using ONLY the provided document context.
         """
         full_context_query = query
         if history:
@@ -296,7 +393,7 @@ USER QUESTION:
         clean_query = query.strip().lower()
         if clean_query in ["hi", "hii", "hello", "hey", "help", "greetings"]:
             return RAGQueryResponse(
-                answer="Hello! 👋 Ask me any question about your uploaded policy documents (e.g. meal limits, flight booking rules, lodging caps, or reimbursement deadlines).",
+                answer="Hello! 👋 Ask me any question about your uploaded policy documents (e.g. meal limits, flight booking rules, lodging caps, or bonus requirements).",
                 citations=[],
                 grounded=True,
                 query=query
@@ -304,10 +401,9 @@ USER QUESTION:
 
         retrieved_results = self.retrieve(query=full_context_query, document_filter=document_filter, top_k=3)
 
-
         fallback_msg = "Sufficient information could not be found in the provided policy documents to answer your question."
 
-        if not retrieved_results or retrieved_results[0][1] < 0.10:
+        if not retrieved_results or retrieved_results[0][1] < 0.001:
             return RAGQueryResponse(
                 answer=fallback_msg,
                 citations=[],
@@ -329,21 +425,25 @@ USER QUESTION:
 
         combined_context = "\n\n---\n\n".join(context_blocks)
 
-        # Generate answer using Gemini 2.0 Flash API
-        gemini_answer, error_msg = self._generate_with_gemini(query=query, context=combined_context)
+        # 1. Try Groq API first (Llama-3.3-70b-versatile)
+        groq_answer, error_msg = self._generate_with_groq(query=query, context=combined_context)
 
-        if gemini_answer:
-            final_answer = gemini_answer
-            is_grounded = fallback_msg.lower() not in gemini_answer.lower()
+        if groq_answer:
+            final_answer = groq_answer
+            is_grounded = fallback_msg.lower() not in groq_answer.lower()
         else:
-            # Local grounded synthesis fallback
-            final_answer = "\n---\n".join([
-                f"**According to {chunk.doc_name} ({chunk.section_title}):**\n{chunk.content}"
-                for chunk, _ in retrieved_results
-            ])
-            if error_msg:
-                final_answer += f"\n\n*(Note: {error_msg})*"
-            is_grounded = True
+            # 2. Fallback to Gemini 2.0 Flash API if configured
+            gemini_answer, gem_err = self._generate_with_gemini(query=query, context=combined_context)
+            if gemini_answer:
+                final_answer = gemini_answer
+                is_grounded = fallback_msg.lower() not in gemini_answer.lower()
+            else:
+                # 3. Local grounded synthesis fallback
+                final_answer = "\n---\n".join([
+                    f"**According to {chunk.doc_name} ({chunk.section_title}):**\n{chunk.content}"
+                    for chunk, _ in retrieved_results
+                ])
+                is_grounded = True
 
         return RAGQueryResponse(
             answer=final_answer,
@@ -351,6 +451,7 @@ USER QUESTION:
             grounded=is_grounded,
             query=query
         )
+
 
     def record_feedback(self, req: FeedbackRequest) -> FeedbackResponse:
         """Records user feedback for RAG quality."""
