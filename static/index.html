@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Reimbursement & AI Policy Assistant</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --secondary: #14b8a6;
+            --accent: #f59e0b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 260px;
+            background: rgba(15, 23, 42, 0.95);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            gap: 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+        }
+
+        .brand-text h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(to right, #fff, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            list-style: none;
+        }
+
+        .nav-item button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item button:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-main);
+        }
+
+        .nav-item button.active {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .user-profile-card {
+            margin-top: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .user-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .user-name {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-role {
+            font-size: 11px;
+            color: var(--secondary);
+            font-weight: 500;
+        }
+
+        /* Main Workspace Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 40%);
+        }
+
+        .header {
+            height: 64px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+        }
+
+        .header-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .tab-pane {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .tab-pane.active {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* RAG AI Assistant Layout */
+        .rag-container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+            height: 100%;
+        }
+
+        .chat-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 85%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.user .message-bubble {
+            background: var(--primary);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-bubble {
+            background: #0f172a;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-bottom-left-radius: 4px;
+        }
+
+        .citation-card {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(20, 184, 166, 0.1);
+            border-left: 3px solid var(--secondary);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .citation-title {
+            font-weight: 600;
+            color: var(--secondary);
+            margin-bottom: 4px;
+        }
+
+        .chat-input-container {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.6);
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .chat-input:focus {
+            border-color: var(--primary);
+        }
+
+        .sidebar-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .preset-btn {
+            width: 100%;
+            text-align: left;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--primary);
+            color: var(--text-main);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        /* Dashboard Grid Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .metric-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .metric-lbl {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 14px 18px;
+            text-align: left;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--accent); }
+        .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .badge-info { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 480px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon"><i class="fa-solid fa-receipt"></i></div>
+            <div class="brand-text">
+                <h1>Expense AI</h1>
+                <p>Enterprise Reimbursement</p>
+            </div>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <button class="active" onclick="switchTab('tab-rag')">
+                    <i class="fa-solid fa-robot"></i> AI Policy Assistant
+                </button>
+            </li>
+            <li class="nav-item">
+                <button onclick="switchTab('tab-expenses')">
+                    <i class="fa-solid fa-wallet"></i> My Expenses
+                </button>
+            </li>
+            <li class="nav-item">
+                <button onclick="switchTab('tab-manager')">
+                    <i class="fa-solid fa-user-check"></i> Manager Approvals
+                </button>
+            </li>
+            <li class="nav-item">
+                <button onclick="switchTab('tab-audit')">
+                    <i class="fa-solid fa-list-check"></i> Audit Logs
+                </button>
+            </li>
+        </ul>
+
+        <div class="user-profile-card">
+            <div class="avatar" id="user-avatar">A</div>
+            <div class="user-info">
+                <div class="user-name" id="user-display-name">Alice Smith</div>
+                <div class="user-role" id="user-display-role">EMPLOYEE</div>
+            </div>
+            <button class="btn btn-outline" style="padding: 6px;" onclick="openAuthModal()" title="Switch Account">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="main-content">
+        <header class="header">
+            <h2 class="header-title" id="header-title">AI Policy Assistant</h2>
+            <div class="header-actions">
+                <a href="/docs" target="_blank" class="btn btn-outline">
+                    <i class="fa-solid fa-book"></i> Swagger Docs
+                </a>
+                <button class="btn btn-primary" onclick="openExpenseModal()">
+                    <i class="fa-solid fa-plus"></i> New Expense
+                </button>
+            </div>
+        </header>
+
+        <!-- Tab 1: AI Policy Assistant (RAG) -->
+        <div id="tab-rag" class="tab-pane active">
+            <div class="rag-container">
+                <div class="chat-box">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="message assistant">
+                            <div class="message-bubble">
+                                👋 Hello! I am your AI Policy Assistant. Ask me anything about corporate expense limits, travel rules, lodging, or remote work stipends!
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" class="chat-input" placeholder="Ask a policy question (e.g. What is the daily meal allowance limit?)" onkeypress="if(event.key === 'Enter') sendQuery()">
+                        <button class="btn btn-primary" onclick="sendQuery()">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sidebar-panel">
+                    <h3 class="panel-title"><i class="fa-solid fa-lightbulb"></i> Suggested Questions</h3>
+                    <button class="preset-btn" onclick="askPreset('What is the daily meal allowance limit?')">
+                        🍱 What is the daily meal allowance limit?
+                    </button>
+                    <button class="preset-btn" onclick="askPreset('Can I book business class for international flights?')">
+                        ✈️ Business class for international flights?
+                    </button>
+                    <button class="preset-btn" onclick="askPreset('What is the remote work equipment stipend?')">
+                        💻 Remote work equipment stipend?
+                    </button>
+                    <button class="preset-btn" onclick="askPreset('What is the corporate pet policy?')">
+                        🐾 Corporate pet policy? (Fallback Check)
+                    </button>
+
+                    <hr style="border-color: var(--border); margin: 8px 0;">
+
+                    <h3 class="panel-title"><i class="fa-solid fa-file-pdf"></i> Knowledge Base</h3>
+                    <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;" id="kb-summary">
+                        Indexing 4 corporate policy documents (Expense Policy, Travel Policy, Finance Policy, Employee Handbook).
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Expenses -->
+        <div id="tab-expenses" class="tab-pane">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Merchant</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Receipt</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-tbody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 3: Manager Approvals -->
+        <div id="tab-manager" class="tab-pane">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: rgba(99,102,241,0.15); color: var(--primary);">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div>
+                        <div class="metric-val" id="dept-budget">$100,000</div>
+                        <div class="metric-lbl">Department Budget</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: rgba(34,197,94,0.15); color: var(--success);">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <div class="metric-val" id="dept-approved">$0</div>
+                        <div class="metric-lbl">Total Approved</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: rgba(245,158,11,0.15); color: var(--accent);">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <div>
+                        <div class="metric-val" id="dept-pending">$0</div>
+                        <div class="metric-lbl">Total Pending Review</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 24px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Merchant</th>
+                            <th>Amount</th>
+                            <th>Submitted Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manager-tbody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 4: Audit Logs -->
+        <div id="tab-audit" class="tab-pane">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Actor ID</th>
+                            <th>Action</th>
+                            <th>Resource</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-tbody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Auth Login -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="panel-title">Sign In / Switch Profile</h3>
+            <div class="form-group">
+                <label>Select User Account</label>
+                <select id="auth-user-select" class="form-control">
+                    <option value="alice.eng@company.com|EmployeePassword123!">Alice Smith (Employee - Engineering)</option>
+                    <option value="bob.sales@company.com|EmployeePassword123!">Bob Jones (Employee - Sales)</option>
+                    <option value="manager.eng@company.com|ManagerPassword123!">Engineering Manager (Manager)</option>
+                    <option value="admin@company.com|AdminPassword123!">Admin User (Administrator)</option>
+                </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-outline" onclick="closeAuthModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="loginSelectedUser()">Sign In</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: New Expense -->
+    <div id="expense-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="panel-title">Create Expense Draft</h3>
+            <div class="form-group">
+                <label>Merchant Name</label>
+                <input type="text" id="exp-merchant" class="form-control" placeholder="Delta Airlines / Uber">
+            </div>
+            <div class="form-group">
+                <label>Amount (USD)</label>
+                <input type="number" id="exp-amount" class="form-control" placeholder="150.00">
+            </div>
+            <div class="form-group">
+                <label>Expense Date</label>
+                <input type="date" id="exp-date" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Category ID</label>
+                <select id="exp-category" class="form-control">
+                    <option value="1">Meals & Entertainment ($75 cap)</option>
+                    <option value="2">Travel & Flights</option>
+                    <option value="3">Lodging & Hotels ($250 cap)</option>
+                    <option value="4">Equipment & Office ($500 cap)</option>
+                </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-outline" onclick="closeExpenseModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createExpenseDraft()">Save Draft</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = "";
+        let currentUser = null;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            const titleMap = {
+                'tab-rag': 'AI Policy Assistant',
+                'tab-expenses': 'My Expenses',
+                'tab-manager': 'Manager Review & Department Analytics',
+                'tab-audit': 'Audit Log History'
+            };
+            document.getElementById('header-title').innerText = titleMap[tabId];
+
+            if (tabId === 'tab-expenses') loadExpenses();
+            if (tabId === 'tab-manager') loadManagerData();
+            if (tabId === 'tab-audit') loadAuditLogs();
+        }
+
+        async function sendQuery() {
+            const input = document.getElementById('chat-input');
+            const query = input.value.trim();
+            if (!query) return;
+
+            const chatMessages = document.getElementById('chat-messages');
+
+            // Render User Message
+            const userDiv = document.createElement('div');
+            userDiv.className = 'message user';
+            userDiv.innerHTML = `<div class="message-bubble">${escapeHtml(query)}</div>`;
+            chatMessages.appendChild(userDiv);
+
+            input.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Send RAG Query
+            try {
+                const res = await fetch('/api/v1/policy-assistant/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await res.json();
+                
+                const assistantDiv = document.createElement('div');
+                assistantDiv.className = 'message assistant';
+                
+                let citationsHtml = '';
+                if (data.citations && data.citations.length > 0) {
+                    citationsHtml = data.citations.map(c => `
+                        <div class="citation-card">
+                            <div class="citation-title">📄 ${escapeHtml(c.document_name)} — ${escapeHtml(c.section_title)} (Relevance: ${c.relevance_score})</div>
+                            <div>"${escapeHtml(c.excerpt)}"</div>
+                        </div>
+                    `).join('');
+                }
+
+                assistantDiv.innerHTML = `
+                    <div class="message-bubble">
+                        <div>${data.answer.replace(/\n/g, '<br>')}</div>
+                        ${citationsHtml}
+                    </div>
+                `;
+                chatMessages.appendChild(assistantDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function askPreset(q) {
+            document.getElementById('chat-input').value = q;
+            sendQuery();
+        }
+
+        function openAuthModal() { document.getElementById('auth-modal').classList.add('active'); }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.remove('active'); }
+        function openExpenseModal() { document.getElementById('expense-modal').classList.add('active'); }
+        function closeExpenseModal() { document.getElementById('expense-modal').classList.remove('active'); }
+
+        async function loginSelectedUser() {
+            const val = document.getElementById('auth-user-select').value;
+            const [email, password] = val.split('|');
+
+            const body = new URLSearchParams();
+            body.append('username', email);
+            body.append('password', password);
+
+            const res = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                authToken = data.access_token;
+                closeAuthModal();
+
+                // Fetch Profile
+                const meRes = await fetch('/api/v1/auth/me', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (meRes.ok) {
+                    currentUser = await meRes.json();
+                    document.getElementById('user-display-name').innerText = currentUser.full_name;
+                    document.getElementById('user-display-role').innerText = currentUser.role;
+                    document.getElementById('user-avatar').innerText = currentUser.full_name.charAt(0);
+                }
+            }
+        }
+
+        async function loadExpenses() {
+            if (!authToken) return;
+            const res = await fetch('/api/v1/expenses/', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const tbody = document.getElementById('expenses-tbody');
+                tbody.innerHTML = data.items.map(e => `
+                    <tr>
+                        <td><strong>${escapeHtml(e.merchant)}</strong></td>
+                        <td>${escapeHtml(e.category ? e.category.name : 'General')}</td>
+                        <td>$${e.amount.toFixed(2)}</td>
+                        <td>${e.expense_date}</td>
+                        <td><span class="badge badge-info">${e.status}</span></td>
+                        <td>${e.receipt_url ? '📎 Attached' : 'No Receipt'}</td>
+                        <td>
+                            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 11px;" onclick="submitRequest(${e.id})">Submit</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function createExpenseDraft() {
+            const merchant = document.getElementById('exp-merchant').value;
+            const amount = parseFloat(document.getElementById('exp-amount').value);
+            const date = document.getElementById('exp-date').value || new Date().toISOString().split('T')[0];
+            const category_id = parseInt(document.getElementById('exp-category').value);
+
+            const res = await fetch('/api/v1/expenses/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ merchant, amount, expense_date: date, category_id })
+            });
+
+            if (res.ok) {
+                closeExpenseModal();
+                loadExpenses();
+            }
+        }
+
+        async function submitRequest(expenseId) {
+            const res = await fetch('/api/v1/requests/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ expense_id: expenseId })
+            });
+            if (res.ok) loadExpenses();
+        }
+
+        async function loadManagerData() {
+            if (!authToken) return;
+            const res = await fetch('/api/v1/manager/pending-requests', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('manager-tbody').innerHTML = data.map(r => `
+                    <tr>
+                        <td>${escapeHtml(r.employee_name)}</td>
+                        <td>${escapeHtml(r.merchant)}</td>
+                        <td>$${r.amount.toFixed(2)}</td>
+                        <td>${r.submitted_at ? r.submitted_at.split('T')[0] : 'N/A'}</td>
+                        <td><span class="badge badge-warning">${r.status}</span></td>
+                        <td>
+                            <button class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;" onclick="reviewReq(${r.id}, 'APPROVE')">Approve</button>
+                            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 11px; color: var(--danger);" onclick="reviewReq(${r.id}, 'REJECT')">Reject</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function reviewReq(id, action) {
+            await fetch(`/api/v1/manager/requests/${id}/review`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ action: action, comment: `${action}D via Manager Dashboard` })
+            });
+            loadManagerData();
+        }
+
+        async function loadAuditLogs() {
+            if (!authToken) return;
+            const res = await fetch('/api/v1/audit-logs/', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('audit-tbody').innerHTML = data.map(l => `
+                    <tr>
+                        <td>${l.timestamp ? l.timestamp.replace('T', ' ').substring(0, 19) : ''}</td>
+                        <td>User #${l.actor_id || 'System'}</td>
+                        <td><span class="badge badge-info">${l.action}</span></td>
+                        <td>${l.resource_type} #${l.resource_id || ''}</td>
+                        <td style="font-size: 11px; font-family: monospace;">${escapeHtml(JSON.stringify(l.metadata || {}))}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Auto login default demo user on load
+        loginSelectedUser();
+    </script>
+</body>
+</html>

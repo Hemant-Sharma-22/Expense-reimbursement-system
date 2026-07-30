@@ -55,9 +55,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static File Storage Mount for Receipt File Previews
+# Static File Storage Mount for Receipt File Previews & Web UI Frontend
 if os.path.exists(settings.UPLOAD_DIR):
     app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/app", StaticFiles(directory=static_dir, html=True), name="static")
+
 
 
 # Custom Exception Handlers
@@ -88,9 +93,11 @@ def root():
         "status": "online",
         "app": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "ui": "/app",
         "docs": "/docs",
         "redoc": "/redoc"
     }
+
 
 
 # Include API V1 Router
