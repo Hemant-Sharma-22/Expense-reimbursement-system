@@ -10,7 +10,21 @@ A robust, enterprise-grade Expense Reimbursement System backend built using **Fa
 
 ---
 
+## 📸 Web Dashboard & Grounding Library Gallery
+
+### 1. Enterprise AI Policy Assistant with Groq (Llama 3.3 70B Grounded Q&A)
+![Groq AI Assistant Bonus Q&A](docs/screenshots/bonus_qa_groq_response.png)
+
+### 2. Multi-File Grounding Library (PDF, TXT, MD, CSV Knowledge Base)
+![Grounding Library Management](docs/screenshots/grounding_library_indexed.png)
+
+### 3. Policy Grounding & Citation Engine
+![Grounded Policy Q&A](docs/screenshots/grounded_qa_meal_policy.png)
+
+---
+
 ## 📸 Interactive API Screenshots & System Gallery
+
 
 ### 1. OpenAPI Documentation Header & Features (`/docs`)
 ![Swagger Header & Description](docs/screenshots/swagger_header_description.png)
