@@ -79,9 +79,10 @@ class RAGService:
                     continue
 
             text = ""
-            doc_title = filename.replace("_", " ").title()
+            doc_title = os.path.splitext(filename)[0].replace("_", " ").title()
 
             if filename.endswith(".md") or filename.endswith(".txt") or filename.endswith(".csv"):
+
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
                         text = f.read()
